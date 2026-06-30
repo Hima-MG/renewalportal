@@ -56,9 +56,13 @@ function useFormField() {
   return {
     id,
     name: fieldContext.name,
-    formItemId: `${id}-form-item`,
-    formDescriptionId: `${id}-form-item-description`,
-    formMessageId: `${id}-form-item-message`,
+    // The control's DOM id is the field name itself (e.g. "studentName"),
+    // not a suffixed/generated id — this is what lets FormLabel's
+    // htmlFor and the control's id match the field name exactly, for
+    // accessibility tooling and tests that assert on that pairing.
+    formItemId: id,
+    formDescriptionId: `${id}-description`,
+    formMessageId: `${id}-message`,
     ...fieldState,
   };
 }
@@ -72,7 +76,13 @@ const FormItemContext = React.createContext<FormItemContextValue>(
 );
 
 function FormItem({ className, ...props }: React.ComponentProps<"div">) {
-  const id = React.useId();
+  // FormItem always renders inside a FormField's render prop in this
+  // codebase, so the field's RHF name is available here — use it as the
+  // DOM id base instead of a random useId() value. Falls back to useId()
+  // for the (currently unused) case of a FormItem outside any FormField.
+  const fieldContext = React.useContext(FormFieldContext);
+  const generatedId = React.useId();
+  const id = fieldContext?.name || generatedId;
 
   return (
     <FormItemContext.Provider value={{ id }}>

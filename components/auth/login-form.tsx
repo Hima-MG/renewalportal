@@ -122,7 +122,11 @@ export function LoginForm() {
               )}
             />
 
-            {error && <p className="text-destructive text-sm">{error}</p>}
+            {error && (
+              <p role="alert" className="text-destructive text-sm">
+                {error}
+              </p>
+            )}
 
             <Button type="submit" size="lg" disabled={isSubmitting}>
               {isSubmitting ? (

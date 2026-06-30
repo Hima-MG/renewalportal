@@ -151,6 +151,7 @@ export function UserManagement() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by name or email"
+            aria-label="Search users"
             className="pl-9"
           />
         </div>
@@ -162,7 +163,7 @@ export function UserManagement() {
               setRoleFilter(isUserRole(value) ? value : "all")
             }
           >
-            <SelectTrigger size="sm" className="w-36">
+            <SelectTrigger size="sm" className="w-36" aria-label="Filter by role">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -266,7 +267,11 @@ export function UserManagement() {
                           });
                         }}
                       >
-                        <SelectTrigger size="sm" className="w-28">
+                        <SelectTrigger
+                          size="sm"
+                          className="w-28"
+                          aria-label={`Set role for ${user.name}`}
+                        >
                           <SelectValue placeholder="Set role" />
                         </SelectTrigger>
                         <SelectContent>

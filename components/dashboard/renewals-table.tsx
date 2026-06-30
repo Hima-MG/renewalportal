@@ -142,6 +142,7 @@ export function RenewalsTable({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search name, phone, request or transaction ID"
+            aria-label="Search renewal requests"
             className="pl-9"
           />
         </div>
@@ -171,7 +172,7 @@ export function RenewalsTable({
               if (isSortOption(v)) setSort(v);
             }}
           >
-            <SelectTrigger size="sm" className="w-32">
+            <SelectTrigger size="sm" className="w-32" aria-label="Sort renewal requests">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>

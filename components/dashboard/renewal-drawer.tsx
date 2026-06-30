@@ -262,8 +262,12 @@ export function RenewalDrawer({
             <Separator />
 
             <section className="space-y-3">
-              <h3 className="text-foreground text-sm font-medium">Remarks</h3>
+              <h3 id="renewal-remarks-label" className="text-foreground text-sm font-medium">
+                Remarks
+              </h3>
               <Textarea
+                id="remarks"
+                aria-labelledby="renewal-remarks-label"
                 value={remarks}
                 onChange={(event) => setRemarks(event.target.value)}
                 rows={3}

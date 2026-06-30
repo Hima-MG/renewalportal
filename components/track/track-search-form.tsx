@@ -65,7 +65,11 @@ export function TrackSearchForm({
             />
           </div>
 
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          {error && (
+            <p role="alert" className="text-destructive text-sm">
+              {error}
+            </p>
+          )}
 
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? (
