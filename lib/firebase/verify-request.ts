@@ -21,7 +21,13 @@ async function verifyBearerToken(request: NextRequest): Promise<VerifyResult> {
   try {
     const token = await getAdminAuth().verifyIdToken(idToken, true);
     return { ok: true, token };
-  } catch {
+  } catch (error) {
+    // Logged server-side only — never sent to the client. This is the
+    // chokepoint for every privileged route, so a misconfigured Admin SDK
+    // (missing/wrong FIREBASE_ADMIN_* env vars) would otherwise look
+    // identical to a genuinely invalid token, with no way to tell them
+    // apart from the client-facing error alone.
+    console.error("[verify-request] Failed to verify ID token:", error);
     return { ok: false, status: 401, error: "Invalid or expired session." };
   }
 }

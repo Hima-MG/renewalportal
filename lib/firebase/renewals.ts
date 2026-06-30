@@ -10,6 +10,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  type DocumentData,
   type QueryConstraint,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -29,6 +30,21 @@ const COUNTERS_COLLECTION = "counters";
 
 function renewalsCollection() {
   return collection(db, RENEWALS_COLLECTION);
+}
+
+// Backward compatibility: documents created before the "plan" ->
+// "renewalDuration" rename only have "plan". Surface it as renewalDuration
+// so the dashboard keeps displaying old requests correctly without a data
+// migration.
+function normalizeRenewal(
+  requestId: string,
+  data: DocumentData,
+): RenewalRequest {
+  return {
+    ...data,
+    requestId,
+    renewalDuration: data.renewalDuration ?? data.plan ?? "",
+  } as RenewalRequest;
 }
 
 // Generates sequential, human-readable request numbers like RN-20260001
@@ -83,7 +99,7 @@ export async function createRenewal(
 
     return {
       success: true,
-      data: { ...data, requestId: created.id } as RenewalRequest,
+      data: normalizeRenewal(created.id, data),
     };
   } catch (error) {
     return { success: false, error: toErrorMessage(error) };
@@ -110,12 +126,8 @@ export function subscribeToRenewals(
   return onSnapshot(
     query(renewalsCollection(), ...constraints),
     (snapshot) => {
-      const renewals = snapshot.docs.map(
-        (snapshotDoc) =>
-          ({
-            requestId: snapshotDoc.id,
-            ...snapshotDoc.data(),
-          }) as RenewalRequest,
+      const renewals = snapshot.docs.map((snapshotDoc) =>
+        normalizeRenewal(snapshotDoc.id, snapshotDoc.data()),
       );
       onData(renewals);
     },

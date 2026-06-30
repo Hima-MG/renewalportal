@@ -69,8 +69,10 @@ export function TrackResult({ renewal }: { renewal: TrackedRenewal }) {
               <dd className="text-right font-medium">{renewal.studentName}</dd>
               <dt className="text-muted-foreground">Course</dt>
               <dd className="text-right font-medium">{renewal.course}</dd>
-              <dt className="text-muted-foreground">Plan</dt>
-              <dd className="text-right font-medium">{renewal.plan}</dd>
+              <dt className="text-muted-foreground">Renewal Duration</dt>
+              <dd className="text-right font-medium">
+                {renewal.renewalDuration}
+              </dd>
               <dt className="text-muted-foreground">Submitted</dt>
               <dd className="text-right font-medium">
                 {formatDateTime(renewal.createdAt)}

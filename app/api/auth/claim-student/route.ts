@@ -36,7 +36,8 @@ export async function POST(request: NextRequest) {
       role: "student",
     });
     return NextResponse.json({ data: null });
-  } catch {
+  } catch (error) {
+    console.error("[claim-student] Failed to set custom claim:", error);
     return NextResponse.json(
       { error: "Could not assign student access. Please try again." },
       { status: 500 },

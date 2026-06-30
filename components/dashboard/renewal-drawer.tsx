@@ -162,8 +162,10 @@ export function RenewalDrawer({
                 <dd className="text-right font-medium">{renewal.phone}</dd>
                 <dt className="text-muted-foreground">Course</dt>
                 <dd className="text-right font-medium">{renewal.course}</dd>
-                <dt className="text-muted-foreground">Plan</dt>
-                <dd className="text-right font-medium">{renewal.plan}</dd>
+                <dt className="text-muted-foreground">Renewal Duration</dt>
+                <dd className="text-right font-medium">
+                  {renewal.renewalDuration}
+                </dd>
               </dl>
             </section>
 

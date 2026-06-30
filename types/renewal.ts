@@ -9,12 +9,21 @@ export const RENEWAL_STATUSES = [
 
 export type RenewalStatus = (typeof RENEWAL_STATUSES)[number];
 
+export const RENEWAL_DURATIONS = [
+  "1 Month",
+  "3 Months",
+  "6 Months",
+  "1 Year",
+] as const;
+
+export type RenewalDuration = (typeof RENEWAL_DURATIONS)[number];
+
 export type RenewalRequest = {
   requestId: string;
   studentName: string;
   phone: string;
   course: string;
-  plan: string;
+  renewalDuration: RenewalDuration;
   amount: number;
   transactionId: string;
   paymentMethod: string;

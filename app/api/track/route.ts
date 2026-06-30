@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
       studentName: data?.studentName ?? "",
       phone: data?.phone ?? "",
       course: data?.course ?? "",
-      plan: data?.plan ?? "",
+      // Backward compatibility: older documents stored this as "plan".
+      renewalDuration: data?.renewalDuration ?? data?.plan ?? "",
       amount: data?.amount ?? 0,
       transactionId: data?.transactionId ?? "",
       paymentMethod: data?.paymentMethod ?? "",

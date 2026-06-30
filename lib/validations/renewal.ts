@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { RENEWAL_DURATIONS } from "@/types/renewal";
+
 export const MAX_SCREENSHOT_SIZE_BYTES = 5 * 1024 * 1024;
 export const ACCEPTED_SCREENSHOT_TYPES = [
   "image/jpeg",
@@ -22,7 +24,9 @@ export const renewalFormSchema = z.object({
     .trim()
     .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit phone number."),
   course: z.string().trim().min(2, "Enter the course name."),
-  plan: z.string().trim().min(1, "Select a renewal plan."),
+  renewalDuration: z.enum(RENEWAL_DURATIONS, {
+    message: "Select a renewal duration.",
+  }),
   amount: z
     .number({ message: "Enter the amount paid." })
     .positive("Amount must be greater than 0."),

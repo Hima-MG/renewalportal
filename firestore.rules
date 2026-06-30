@@ -57,12 +57,16 @@ service cloud.firestore {
       return value is string && value.matches('^[A-Z0-9]{10}$');
     }
 
+    function isValidRenewalDuration(value) {
+      return value in ['1 Month', '3 Months', '6 Months', '1 Year'];
+    }
+
     function isValidRenewalCreate(data, requestId) {
       return data.requestId == requestId
         && data.studentName is string && data.studentName.size() > 0
         && data.phone is string && data.phone.size() > 0
         && data.course is string && data.course.size() > 0
-        && data.plan is string && data.plan.size() > 0
+        && isValidRenewalDuration(data.renewalDuration)
         && data.amount is number && data.amount > 0
         && data.transactionId is string && data.transactionId.size() > 0
         && data.paymentMethod is string && data.paymentMethod.size() > 0

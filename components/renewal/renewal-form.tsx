@@ -41,11 +41,10 @@ import {
 } from "@/lib/validations/renewal";
 import { compressImage } from "@/utils/image";
 import { generateTrackingToken } from "@/utils/tracking-token";
-
-const RENEWAL_PLANS = ["6 Months", "1 Year", "2 Years"] as const;
+import { RENEWAL_DURATIONS } from "@/types/renewal";
 
 const STEP_FIELDS: Record<number, FieldPath<RenewalFormValues>[]> = {
-  1: ["studentName", "phone", "course", "plan"],
+  1: ["studentName", "phone", "course", "renewalDuration"],
   2: ["amount", "paymentMethod", "transactionId"],
   3: ["screenshot", "remarks"],
 };
@@ -71,7 +70,7 @@ export function RenewalForm() {
       studentName: "",
       phone: "",
       course: "",
-      plan: "",
+      renewalDuration: undefined,
       amount: 0,
       transactionId: "",
       paymentMethod: "",
@@ -124,7 +123,13 @@ export function RenewalForm() {
           headers: { Authorization: `Bearer ${idToken}` },
         });
         if (!claimResponse.ok) {
-          setSubmitError("Could not verify your session. Please try again.");
+          const claimJson = (await claimResponse.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          setSubmitError(
+            claimJson?.error ??
+              "Could not verify your session. Please try again.",
+          );
           return;
         }
         await user.getIdToken(true);
@@ -161,7 +166,7 @@ export function RenewalForm() {
         studentName: values.studentName,
         phone: values.phone,
         course: values.course,
-        plan: values.plan,
+        renewalDuration: values.renewalDuration,
         amount: values.amount,
         transactionId: values.transactionId,
         paymentMethod: values.paymentMethod,
@@ -278,23 +283,23 @@ export function RenewalForm() {
 
                 <FormField
                   control={form.control}
-                  name="plan"
+                  name="renewalDuration"
                   render={({ field }) => (
                     <FormItem className="sm:col-span-2">
-                      <FormLabel>Plan</FormLabel>
+                      <FormLabel>Renewal Duration</FormLabel>
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
                       >
                         <FormControl>
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select a plan" />
+                            <SelectValue placeholder="Select renewal duration" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {RENEWAL_PLANS.map((plan) => (
-                            <SelectItem key={plan} value={plan}>
-                              {plan}
+                          {RENEWAL_DURATIONS.map((duration) => (
+                            <SelectItem key={duration} value={duration}>
+                              {duration}
                             </SelectItem>
                           ))}
                         </SelectContent>
