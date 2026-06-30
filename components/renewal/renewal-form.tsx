@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useForm, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signInAnonymously } from "firebase/auth";
+import { signInAnonymously, type User } from "firebase/auth";
 import { ImageUp, Loader2, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SuccessScreen } from "@/components/renewal/success-screen";
 import { RenewalStepper } from "@/components/renewal/renewal-stepper";
 import { auth } from "@/lib/firebase/auth";
-import { createRenewal, generateRequestId } from "@/lib/firebase";
+import { createRenewal } from "@/lib/api/create-renewal";
 import { uploadScreenshot } from "@/lib/api/upload-screenshot";
 import {
   ACCEPTED_SCREENSHOT_TYPES,
@@ -40,7 +40,6 @@ import {
   type RenewalFormValues,
 } from "@/lib/validations/renewal";
 import { compressImage } from "@/utils/image";
-import { generateTrackingToken } from "@/utils/tracking-token";
 import { RENEWAL_DURATIONS } from "@/types/renewal";
 
 const STEP_FIELDS: Record<number, FieldPath<RenewalFormValues>[]> = {
@@ -49,7 +48,41 @@ const STEP_FIELDS: Record<number, FieldPath<RenewalFormValues>[]> = {
   3: ["screenshot", "remarks"],
 };
 
-type SubmitPhase = "idle" | "compressing" | "uploading" | "saving";
+type SubmitPhase =
+  "idle" | "preparing" | "compressing" | "uploading" | "saving";
+
+const CLAIM_POLL_INTERVAL_MS = 300;
+const CLAIM_POLL_TIMEOUT_MS = 5000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// setCustomUserClaims() on the server does not guarantee the very next
+// force-refreshed ID token already carries the new claim — there is a
+// short, variable propagation delay on Firebase's side. A single
+// `getIdToken(true)` right after the claim-student call is therefore not
+// reliable: Firestore can reject the write with "Missing or insufficient
+// permissions" because the token it received still has no role claim,
+// even though the API call that set it already returned 200 OK. This
+// polls (forcing a fresh token each attempt) until the claim is actually
+// present, bounded to CLAIM_POLL_TIMEOUT_MS, instead of writing blind.
+async function waitForStudentClaim(user: User): Promise<{ ok: boolean }> {
+  const deadline = Date.now() + CLAIM_POLL_TIMEOUT_MS;
+
+  while (true) {
+    const result = await user.getIdTokenResult(true);
+    if (result.claims.role === "student") {
+      return { ok: true };
+    }
+
+    if (Date.now() >= deadline) {
+      return { ok: false };
+    }
+
+    await delay(CLAIM_POLL_INTERVAL_MS);
+  }
+}
 
 type SubmittedRequest = {
   requestId: string;
@@ -73,7 +106,7 @@ export function RenewalForm() {
       renewalDuration: undefined,
       amount: 0,
       transactionId: "",
-      paymentMethod: "",
+      paymentMethod: undefined,
       remarks: "",
     },
   });
@@ -113,9 +146,10 @@ export function RenewalForm() {
       }
 
       // Anonymous sign-in alone carries no role claim. Self-claim 'student'
-      // (the endpoint only ever grants that role to anonymous users) and
-      // force-refresh the ID token so Firestore rules see it immediately.
-      const idTokenResult = await user.getIdTokenResult();
+      // (the endpoint only ever grants that role to anonymous users), then
+      // verify the claim has actually propagated to a refreshed token
+      // before ever attempting a Firestore write.
+      let idTokenResult = await user.getIdTokenResult();
       if (idTokenResult.claims.role !== "student") {
         const idToken = await user.getIdToken();
         const claimResponse = await fetch("/api/auth/claim-student", {
@@ -132,15 +166,48 @@ export function RenewalForm() {
           );
           return;
         }
-        await user.getIdToken(true);
+
+        setPhase("preparing");
+        const claimResult = await waitForStudentClaim(user);
+        setPhase("idle");
+
+        if (!claimResult.ok) {
+          console.error(
+            "[renewal-form] Student claim did not propagate within",
+            CLAIM_POLL_TIMEOUT_MS,
+            "ms for uid:",
+            user.uid,
+          );
+          setSubmitError(
+            "Unable to prepare your account. Please refresh and try again.",
+          );
+          return;
+        }
+
+        // waitForStudentClaim's last attempt already force-refreshed the
+        // token, so this just reads that already-fresh cached result.
+        idTokenResult = await user.getIdTokenResult();
       }
 
-      const requestIdResult = await generateRequestId();
-      if (!requestIdResult.success) {
-        setSubmitError(requestIdResult.error);
+      // Final verification, right before the Firestore write — never
+      // create the renewal document without explicit confirmation that
+      // the authenticated user's token actually carries role: "student".
+      if (idTokenResult.claims.role !== "student") {
+        console.error(
+          "[renewal-form] Refusing to create renewal: role is not 'student'.",
+          { uid: user.uid, claims: idTokenResult.claims },
+        );
+        setSubmitError(
+          "Unable to prepare your account. Please refresh and try again.",
+        );
         return;
       }
-      const requestId = requestIdResult.data;
+
+      console.log("[renewal-form] Verified student session before write:", {
+        uid: user.uid,
+        role: idTokenResult.claims.role,
+        claims: idTokenResult.claims,
+      });
 
       setPhase("compressing");
       const compressedScreenshot = await compressImage(values.screenshot);
@@ -148,7 +215,6 @@ export function RenewalForm() {
       setPhase("uploading");
       setUploadProgress(0);
       const uploadResult = await uploadScreenshot(
-        requestId,
         compressedScreenshot,
         setUploadProgress,
       );
@@ -158,11 +224,11 @@ export function RenewalForm() {
         return;
       }
 
+      // Request ID + tracking token generation and the Firestore write all
+      // happen server-side here — the client never touches counters/* and
+      // never writes renewal_requests directly.
       setPhase("saving");
-      const trackingToken = generateTrackingToken();
-      const uid = auth.currentUser?.uid ?? null;
-
-      const createResult = await createRenewal(requestId, {
+      const createResult = await createRenewal({
         studentName: values.studentName,
         phone: values.phone,
         course: values.course,
@@ -177,10 +243,6 @@ export function RenewalForm() {
         imageBytes: uploadResult.data.bytes,
         imageFormat: uploadResult.data.format,
         remarks: values.remarks,
-        trackingToken,
-        studentUid: uid,
-        createdBy: uid ?? "anonymous",
-        updatedBy: uid ?? "anonymous",
       });
 
       if (!createResult.success) {
@@ -189,7 +251,7 @@ export function RenewalForm() {
       }
 
       toast.success("Renewal request submitted successfully.");
-      setSubmitted({ requestId, trackingToken });
+      setSubmitted(createResult.data);
     } catch {
       setSubmitError("Something went wrong. Please try again.");
     } finally {
@@ -488,6 +550,8 @@ export function RenewalForm() {
                   {isBusy ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
+                      {phase === "preparing" &&
+                        "Preparing your account... Please wait..."}
                       {phase === "compressing" && "Optimizing image..."}
                       {phase === "uploading" && "Uploading..."}
                       {phase === "saving" && "Submitting..."}

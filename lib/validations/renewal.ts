@@ -31,7 +31,9 @@ export const renewalFormSchema = z.object({
     .number({ message: "Enter the amount paid." })
     .positive("Amount must be greater than 0."),
   transactionId: z.string().trim().min(4, "Enter a valid transaction ID."),
-  paymentMethod: z.string().trim().min(1, "Select a payment method."),
+  paymentMethod: z.enum(PAYMENT_METHODS, {
+    message: "Select a payment method.",
+  }),
   screenshot: z
     .instanceof(File, { message: "Upload a payment screenshot." })
     .refine(

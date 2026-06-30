@@ -21,7 +21,10 @@ const ACCEPTED_TYPES = new Set([
   "image/webp",
 ]);
 const ACCEPTED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
-const REQUEST_ID_PATTERN = /^RN-\d{8}$/;
+// Opaque client-generated correlation id for the Cloudinary folder/public_id
+// — not the renewal's real request ID, which doesn't exist yet at upload
+// time (it's minted by app/api/create-renewal, after the upload completes).
+const UPLOAD_ID_PATTERN = /^[a-zA-Z0-9_-]{8,64}$/;
 const RATE_LIMIT = { windowMs: 60_000, maxAttempts: 20 };
 
 function fileExtension(fileName: string): string {
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest) {
   }
 
   const file = formData.get("file");
-  const requestId = formData.get("requestId");
+  const uploadId = formData.get("uploadId");
 
   if (!(file instanceof File)) {
     return NextResponse.json(
@@ -66,10 +69,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (typeof requestId !== "string" || !REQUEST_ID_PATTERN.test(requestId)) {
+  if (typeof uploadId !== "string" || !UPLOAD_ID_PATTERN.test(uploadId)) {
     return NextResponse.json(
-      { error: "A valid request ID is required." },
-      { status: 400 },
+      { error: "Invalid upload request." },
+      {
+        status: 400,
+      },
     );
   }
 
@@ -92,7 +97,7 @@ export async function POST(request: NextRequest) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const result = await uploadImageToCloudinary(buffer, requestId);
+  const result = await uploadImageToCloudinary(buffer, uploadId);
 
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 502 });

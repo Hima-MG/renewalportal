@@ -11,6 +11,14 @@ rules_version = '2';
 // requestId + trackingToken match. This is what prevents phone
 // enumeration, request enumeration, collection scans, and direct
 // document guessing — there is no client-reachable read path at all.
+//
+// Students also have NO write access of any kind on renewal_requests, and
+// counters/* does not exist as a client-reachable collection at all.
+// Creating a renewal (minting the sequential request ID from counters/*
+// and writing the renewal_requests document) happens exclusively through
+// app/api/create-renewal via the Admin SDK, which bypasses these rules
+// entirely. See that route for why a client-side counters/* transaction
+// was the wrong architecture to begin with.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -20,10 +28,6 @@ service cloud.firestore {
 
     function role() {
       return request.auth.token.role;
-    }
-
-    function isStudent() {
-      return isSignedIn() && role() == 'student';
     }
 
     function isFinance() {
@@ -53,64 +57,24 @@ service cloud.firestore {
         || (newStatus == 'Completed' && oldStatus == 'Approved');
     }
 
-    function isValidTrackingToken(value) {
-      return value is string && value.matches('^[A-Z0-9]{10}$');
-    }
-
-    function isValidRenewalDuration(value) {
-      return value in ['1 Month', '3 Months', '6 Months', '1 Year'];
-    }
-
-    function isValidRenewalCreate(data, requestId) {
-      return data.requestId == requestId
-        && data.studentName is string && data.studentName.size() > 0
-        && data.phone is string && data.phone.size() > 0
-        && data.course is string && data.course.size() > 0
-        && isValidRenewalDuration(data.renewalDuration)
-        && data.amount is number && data.amount > 0
-        && data.transactionId is string && data.transactionId.size() > 0
-        && data.paymentMethod is string && data.paymentMethod.size() > 0
-        && data.screenshotUrl is string && data.screenshotUrl.size() > 0
-        && data.cloudinaryPublicId is string && data.cloudinaryPublicId.size() > 0
-        && data.imageWidth is number && data.imageWidth > 0
-        && data.imageHeight is number && data.imageHeight > 0
-        && data.imageBytes is number && data.imageBytes > 0
-        && data.imageFormat is string && data.imageFormat.size() > 0
-        && data.status == 'Pending'
-        && data.verifiedBy == null
-        && data.completedBy == null
-        && isValidTrackingToken(data.trackingToken)
-        && data.createdBy == request.auth.uid
-        && data.updatedBy == request.auth.uid
-        && (data.studentUid == null || data.studentUid == request.auth.uid);
-    }
-
-    // Per-year sequence counters (e.g. counters/renewal_2026) used to mint
-    // human-readable request numbers like RN-20260001.
-    function isValidCounterWrite(data) {
-      return data.year is number
-        && data.sequence is number
-        && data.sequence > 0;
-    }
-
     match /renewal_requests/{requestId} {
-      // Students: create only. No read rule exists for students at all —
-      // not get, not list — so there is no client-reachable path to view
-      // a renewal after submission, by guessing, scanning, or querying.
-      allow create: if isStudent()
-        && isValidRenewalCreate(request.resource.data, requestId);
-
-      // Finance + Admin: full read/write from the dashboard, with a
-      // data-integrity guard on status values and transitions.
+      // No client create rule: every renewal_requests document is created
+      // by app/api/create-renewal (Admin SDK) only. A client write rule
+      // here — even one that validated every field — would still let a
+      // student bypass the server's sequential ID generation and write a
+      // document directly with a forged or colliding request ID, which is
+      // the exact problem this architecture removes.
       allow read, delete: if isStaff();
       allow update: if isStaff()
         && isValidStatus(request.resource.data.status)
         && isValidStatusTransition(resource.data.status, request.resource.data.status);
     }
 
-    match /counters/{counterId} {
-      allow read, write: if isStudent() && isValidCounterWrite(request.resource.data);
-    }
+    // No counters/* match block: this collection is Admin SDK only. There
+    // is no rule that grants any client (student, finance, or admin) read
+    // or write access to it, so any client SDK request against counters/*
+    // is denied by Firestore's default-deny — exactly the same as if the
+    // collection didn't exist from the client's perspective.
 
     // Profile information only (name/email/role/isActive mirror). Never
     // used for authorization — that's always the custom claim. All writes

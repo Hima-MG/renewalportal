@@ -59,14 +59,16 @@ function buildOptimizedUrl(publicId: string, format: string): string {
 // browser) while still applying the configured upload preset's settings
 // (folder/transformation/tag rules defined in the Cloudinary console).
 //
-// The public_id is deterministic — one canonical name per request ID,
-// derived from a server-side random suffix rather than the original
-// filename — and uploaded with overwrite: false, so a retried/duplicated
-// upload for the same request fails instead of silently creating (and
-// paying for) a second copy.
+// `uploadId` is just a grouping label for the Cloudinary folder/public_id —
+// it is generated client-side before the renewal_requests document (and
+// its real, sequential request ID) exists, since uploading now always
+// happens before app/api/create-renewal mints the request ID. The public_id
+// also gets a server-random suffix and is uploaded with overwrite: false,
+// so a retried/duplicated upload can't silently create (and bill) a
+// second copy.
 export async function uploadImageToCloudinary(
   buffer: Buffer,
-  requestId: string,
+  uploadId: string,
 ): Promise<ServiceResult<CloudinaryUploadResult>> {
   try {
     configureCloudinary();
@@ -76,7 +78,7 @@ export async function uploadImageToCloudinary(
       throw new Error("CLOUDINARY_UPLOAD_PRESET is not configured.");
     }
 
-    const publicId = `${requestId}-${crypto.randomBytes(8).toString("hex")}`;
+    const publicId = `${uploadId}-${crypto.randomBytes(8).toString("hex")}`;
 
     const result = await new Promise<UploadApiResponse>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(

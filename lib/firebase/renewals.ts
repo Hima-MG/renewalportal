@@ -1,13 +1,10 @@
 import {
   collection,
   doc,
-  getDoc,
   onSnapshot,
   orderBy,
   query,
-  runTransaction,
   serverTimestamp,
-  setDoc,
   updateDoc,
   where,
   type DocumentData,
@@ -19,14 +16,12 @@ import { db } from "@/lib/firebase/firestore";
 import { toErrorMessage } from "@/lib/utils";
 import type { ServiceResult } from "@/types/result";
 import type {
-  CreateRenewalInput,
   RenewalRequest,
   RenewalStatus,
   UpdateRenewalInput,
 } from "@/types/renewal";
 
 const RENEWALS_COLLECTION = "renewal_requests";
-const COUNTERS_COLLECTION = "counters";
 
 function renewalsCollection() {
   return collection(db, RENEWALS_COLLECTION);
@@ -47,71 +42,19 @@ function normalizeRenewal(
   } as RenewalRequest;
 }
 
-// Generates sequential, human-readable request numbers like RN-20260001
-// (RN- + year + 4-digit sequence) using a per-year counter document so
-// concurrent submissions never collide.
-export async function generateRequestId(): Promise<ServiceResult<string>> {
-  try {
-    const year = new Date().getFullYear();
-    const counterRef = doc(db, COUNTERS_COLLECTION, `renewal_${year}`);
-
-    const requestId = await runTransaction(db, async (transaction) => {
-      const counterSnapshot = await transaction.get(counterRef);
-      const nextSequence = counterSnapshot.exists()
-        ? (counterSnapshot.data().sequence as number) + 1
-        : 1;
-
-      transaction.set(counterRef, { year, sequence: nextSequence });
-
-      return `RN-${year}${String(nextSequence).padStart(4, "0")}`;
-    });
-
-    return { success: true, data: requestId };
-  } catch (error) {
-    return { success: false, error: toErrorMessage(error) };
-  }
-}
-
-export async function createRenewal(
-  requestId: string,
-  input: CreateRenewalInput,
-): Promise<ServiceResult<RenewalRequest>> {
-  try {
-    const docRef = doc(db, RENEWALS_COLLECTION, requestId);
-
-    await setDoc(docRef, {
-      ...input,
-      requestId,
-      status: "Pending" satisfies RenewalStatus,
-      remarks: input.remarks ?? "",
-      verifiedBy: null,
-      completedBy: null,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    const created = await getDoc(docRef);
-    const data = created.data();
-
-    if (!data) {
-      return { success: false, error: "Renewal request was not created." };
-    }
-
-    return {
-      success: true,
-      data: normalizeRenewal(created.id, data),
-    };
-  } catch (error) {
-    return { success: false, error: toErrorMessage(error) };
-  }
-}
-
 export type GetRenewalsFilters = {
   status?: RenewalStatus;
 };
 
 // Live-subscribes to the renewal_requests collection so dashboard views
 // reflect Firestore writes (from this client or any other) immediately.
+//
+// Intentionally no client-side createRenewal/generateRequestId here — both
+// the counters/* transaction and the renewal_requests write now happen
+// exclusively through app/api/create-renewal (Admin SDK). See that route
+// for why: a client-side counter transaction required students to read
+// and write counters/*, which is exactly the access this architecture
+// removes.
 export function subscribeToRenewals(
   onData: (renewals: RenewalRequest[]) => void,
   onError: (error: string) => void,

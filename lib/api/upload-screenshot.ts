@@ -6,8 +6,12 @@ import type { CloudinaryUploadResult } from "@/types/cloudinary";
 
 // Uses XMLHttpRequest (not fetch) so upload progress can be reported —
 // fetch has no cross-browser way to observe request-body upload progress.
+//
+// There is no renewal request ID yet at this point — that's minted by
+// app/api/create-renewal, after the screenshot is already uploaded — so
+// this generates its own opaque correlation id purely for Cloudinary's
+// folder/public_id grouping.
 export async function uploadScreenshot(
-  requestId: string,
   file: File,
   onProgress?: (percent: number) => void,
 ): Promise<ServiceResult<CloudinaryUploadResult>> {
@@ -19,7 +23,7 @@ export async function uploadScreenshot(
   return new Promise((resolve) => {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("requestId", requestId);
+    formData.append("uploadId", crypto.randomUUID());
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/upload");
