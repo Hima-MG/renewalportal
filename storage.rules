@@ -1,0 +1,46 @@
+rules_version = '2';
+
+// =====================================================================
+// Civilezy — Storage rules
+//
+// The Renewal Portal no longer uses Firebase Storage at all — payment
+// screenshots are uploaded directly to Cloudinary via app/api/upload,
+// and the resulting URL is stored on the Firestore document. There is
+// intentionally no renewal-portal-specific block here anymore.
+//
+// Everything below serves the existing Civilezy website + Game Arena
+// and is unchanged from before the Renewal Portal existed.
+// =====================================================================
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── E-Book covers ────────────────────────────────────────────────────────
+    // Public read. Open write: admin panel uses a passphrase (not Firebase Auth).
+    match /ebooks/covers/{fileName} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ── Blog featured images ─────────────────────────────────────────────────
+    // Public read so images render in blog posts and social cards.
+    // Open write: admin panel uses a passphrase guard (not Firebase Auth).
+    // Application-level protection prevents non-admin access.
+    match /blogs/{blogId}/{fileName} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ── Technical support ticket attachments ─────────────────────────────────
+    // Public read so admin panel and students can view images/voice/screen
+    // recordings. Open write: ticket submission uses no Firebase Auth.
+    match /support-attachments/{ticketId}/{path=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // ── Default: deny everything else ────────────────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

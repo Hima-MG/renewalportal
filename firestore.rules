@@ -1,0 +1,120 @@
+rules_version = '2';
+
+// Roles are issued as Firebase Auth custom claims:
+// token.role == 'student' | 'finance' | 'admin'.
+//
+// Students have NO read access of any kind on renewal_requests — not a
+// single get, not a list/query by phone or requestId, nothing. The only
+// way a student can ever see their own renewal again is through the
+// server-side /api/track route, which uses the Admin SDK (bypasses these
+// rules entirely) and only returns data after it independently verifies
+// requestId + trackingToken match. This is what prevents phone
+// enumeration, request enumeration, collection scans, and direct
+// document guessing — there is no client-reachable read path at all.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return request.auth.token.role;
+    }
+
+    function isStudent() {
+      return isSignedIn() && role() == 'student';
+    }
+
+    function isFinance() {
+      return isSignedIn() && role() == 'finance';
+    }
+
+    function isAdmin() {
+      return isSignedIn() && role() == 'admin';
+    }
+
+    function isStaff() {
+      return isFinance() || isAdmin();
+    }
+
+    function isValidStatus(value) {
+      return value in ['Pending', 'Approved', 'Rejected', 'Completed'];
+    }
+
+    // Mirrors the dashboard's Approve/Reject/Mark Completed button rules
+    // server-side: Completed is terminal, Rejected can still be corrected
+    // to Approved, Completed only follows Approved. A same-status update
+    // (e.g. saving remarks) is always a no-op transition and allowed.
+    function isValidStatusTransition(oldStatus, newStatus) {
+      return newStatus == oldStatus
+        || (newStatus == 'Approved' && oldStatus != 'Completed')
+        || (newStatus == 'Rejected' && oldStatus != 'Completed')
+        || (newStatus == 'Completed' && oldStatus == 'Approved');
+    }
+
+    function isValidTrackingToken(value) {
+      return value is string && value.matches('^[A-Z0-9]{10}$');
+    }
+
+    function isValidRenewalCreate(data, requestId) {
+      return data.requestId == requestId
+        && data.studentName is string && data.studentName.size() > 0
+        && data.phone is string && data.phone.size() > 0
+        && data.course is string && data.course.size() > 0
+        && data.plan is string && data.plan.size() > 0
+        && data.amount is number && data.amount > 0
+        && data.transactionId is string && data.transactionId.size() > 0
+        && data.paymentMethod is string && data.paymentMethod.size() > 0
+        && data.screenshotUrl is string && data.screenshotUrl.size() > 0
+        && data.cloudinaryPublicId is string && data.cloudinaryPublicId.size() > 0
+        && data.imageWidth is number && data.imageWidth > 0
+        && data.imageHeight is number && data.imageHeight > 0
+        && data.imageBytes is number && data.imageBytes > 0
+        && data.imageFormat is string && data.imageFormat.size() > 0
+        && data.status == 'Pending'
+        && data.verifiedBy == null
+        && data.completedBy == null
+        && isValidTrackingToken(data.trackingToken)
+        && data.createdBy == request.auth.uid
+        && data.updatedBy == request.auth.uid
+        && (data.studentUid == null || data.studentUid == request.auth.uid);
+    }
+
+    // Per-year sequence counters (e.g. counters/renewal_2026) used to mint
+    // human-readable request numbers like RN-20260001.
+    function isValidCounterWrite(data) {
+      return data.year is number
+        && data.sequence is number
+        && data.sequence > 0;
+    }
+
+    match /renewal_requests/{requestId} {
+      // Students: create only. No read rule exists for students at all —
+      // not get, not list — so there is no client-reachable path to view
+      // a renewal after submission, by guessing, scanning, or querying.
+      allow create: if isStudent()
+        && isValidRenewalCreate(request.resource.data, requestId);
+
+      // Finance + Admin: full read/write from the dashboard, with a
+      // data-integrity guard on status values and transitions.
+      allow read, delete: if isStaff();
+      allow update: if isStaff()
+        && isValidStatus(request.resource.data.status)
+        && isValidStatusTransition(resource.data.status, request.resource.data.status);
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if isStudent() && isValidCounterWrite(request.resource.data);
+    }
+
+    // Profile information only (name/email/role/isActive mirror). Never
+    // used for authorization — that's always the custom claim. All writes
+    // go through the Admin SDK (app/api/admin/users/*), which bypasses
+    // these rules entirely, so this is intentionally fully locked down to
+    // clients: not even an admin can write here directly from the browser.
+    match /users/{uid} {
+      allow read, write: if false;
+    }
+  }
+}
