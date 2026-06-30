@@ -18,8 +18,11 @@ export const metadata: Metadata = {
     template: "%s | Renewal Portal",
   },
   description: "Manage and renew your subscriptions and licenses with ease.",
+  // `||` (not `??`) on purpose: NEXT_PUBLIC_SITE_URL is declared but left
+  // blank in .env.local.example, and an empty string is truthy enough to
+  // skip `??`'s null/undefined fallback — new URL("") then throws.
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   ),
 };
 
