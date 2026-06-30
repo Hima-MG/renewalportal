@@ -575,11 +575,13 @@ export function RenewalForm() {
 type ScreenshotUploaderProps = {
   value?: File;
   onChange: (file: File | undefined) => void;
+  id?: string;
 };
 
 function ScreenshotUploader({
   value,
   onChange,
+  id,
   ...props
 }: ScreenshotUploaderProps) {
   const previewUrl = useMemo(
@@ -597,6 +599,18 @@ function ScreenshotUploader({
 
   return (
     <div>
+      {/* Always mounted (visually hidden), not just while no file is
+          selected — FormLabel's htmlFor points at this id regardless of
+          which branch below is showing, and a label whose `for` has no
+          matching element in the DOM is an accessibility/autofill bug. */}
+      <input
+        {...props}
+        id={id}
+        type="file"
+        accept={ACCEPTED_SCREENSHOT_TYPES.join(",")}
+        className="sr-only"
+        onChange={(event) => onChange(event.target.files?.[0])}
+      />
       {value && previewUrl ? (
         <div className="border-input bg-muted/40 flex items-center gap-3 rounded-xl border p-3">
           <Image
@@ -620,7 +634,10 @@ function ScreenshotUploader({
           </button>
         </div>
       ) : (
-        <label className="border-input hover:bg-muted/40 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center transition-colors">
+        <label
+          htmlFor={id}
+          className="border-input hover:bg-muted/40 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center transition-colors"
+        >
           <ImageUp className="text-muted-foreground size-6" />
           <span className="text-foreground text-sm">
             Click to upload payment screenshot
@@ -628,13 +645,6 @@ function ScreenshotUploader({
           <span className="text-muted-foreground text-xs">
             JPG, JPEG, PNG, or WEBP, up to 5 MB
           </span>
-          <input
-            {...props}
-            type="file"
-            accept={ACCEPTED_SCREENSHOT_TYPES.join(",")}
-            className="sr-only"
-            onChange={(event) => onChange(event.target.files?.[0])}
-          />
         </label>
       )}
     </div>
