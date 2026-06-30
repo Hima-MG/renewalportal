@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useForm, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signInAnonymously, type User } from "firebase/auth";
+import { signInAnonymously, signOut, type User } from "firebase/auth";
 import { ImageUp, Loader2, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -136,6 +136,17 @@ export function RenewalForm() {
     setSubmitError(null);
 
     try {
+      // The renewal form only ever operates as an anonymous student. If
+      // this browser already has a *different* signed-in identity (e.g.
+      // someone tested the Finance Dashboard email/password login earlier
+      // in the same browser — Firebase Auth persists that session), reusing
+      // it here would send a non-anonymous token to /api/auth/claim-student,
+      // which correctly refuses to grant 'student' to a staff account and
+      // returns 403. Sign that identity out first so this always starts a
+      // fresh anonymous session instead of silently failing on stale auth.
+      if (auth.currentUser && !auth.currentUser.isAnonymous) {
+        await signOut(auth);
+      }
       if (!auth.currentUser) {
         await signInAnonymously(auth);
       }
