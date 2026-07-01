@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import {
   createRenewalDocumentAdmin,
+  findRenewalByTransactionId,
   generateRequestIdAdmin,
 } from "@/lib/firebase/admin-renewals";
 import { parseJsonBody } from "@/lib/api/parse-json-body";
@@ -40,6 +41,19 @@ export async function POST(request: NextRequest) {
 
   const uid = auth.token.uid;
 
+  const duplicateCheck = await findRenewalByTransactionId(
+    parsed.data.transactionId,
+  );
+  if (duplicateCheck.success && duplicateCheck.data) {
+    return NextResponse.json(
+      {
+        error:
+          "This transaction ID has already been submitted. Track your existing request instead of submitting again.",
+      },
+      { status: 409 },
+    );
+  }
+
   const requestIdResult = await generateRequestIdAdmin();
   if (!requestIdResult.success) {
     console.error(
@@ -56,6 +70,7 @@ export async function POST(request: NextRequest) {
 
   const createResult = await createRenewalDocumentAdmin(requestId, {
     ...parsed.data,
+    email: parsed.data.email ?? null,
     trackingToken,
     studentUid: uid,
     createdBy: uid,

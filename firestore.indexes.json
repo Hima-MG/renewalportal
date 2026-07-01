@@ -7,37 +7,7 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "renewal_requests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "phone", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "renewal_requests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "transactionId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
     }
   ],
-  "fieldOverrides": [
-    {
-      "collectionGroup": "renewal_requests",
-      "fieldPath": "status",
-      "indexes": [
-        { "order": "ASCENDING", "queryScope": "COLLECTION" },
-        { "order": "DESCENDING", "queryScope": "COLLECTION" }
-      ]
-    },
-    {
-      "collectionGroup": "renewal_requests",
-      "fieldPath": "requestId",
-      "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }]
-    }
-  ]
+  "fieldOverrides": []
 }

@@ -47,6 +47,8 @@ export type RenewalRequest = {
   // server-side /api/track route (Admin SDK) ever compares it.
   trackingToken: string;
   // uid of the (anonymous) Firebase Auth user that created the request.
+  // Optional — not all students provide one; older documents won't have it.
+  email: string | null;
   studentUid: string | null;
   createdBy: string;
   updatedBy: string;

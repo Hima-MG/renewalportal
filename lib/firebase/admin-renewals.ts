@@ -39,6 +39,33 @@ export async function generateRequestIdAdmin(): Promise<ServiceResult<string>> {
   }
 }
 
+// Best-effort duplicate guard: flags a transaction ID that's already
+// attached to another renewal request, so the same payment screenshot
+// can't accidentally (or deliberately) be used to create two Pending
+// requests. This is a read-then-write check, not a single atomic
+// transaction spanning both the query and the create — under a genuine
+// simultaneous double-submit of the *same* transaction ID (not just the
+// same student double-clicking, which the client already guards against)
+// both requests could still pass this check before either commits. That
+// residual race is an accepted, low-impact tradeoff: worst case is two
+// Pending requests for one payment, which finance can see and reject one
+// of during review — never a security or data-corruption issue.
+export async function findRenewalByTransactionId(
+  transactionId: string,
+): Promise<ServiceResult<string | null>> {
+  try {
+    const snapshot = await getAdminDb()
+      .collection(RENEWALS_COLLECTION)
+      .where("transactionId", "==", transactionId)
+      .limit(1)
+      .get();
+
+    return { success: true, data: snapshot.empty ? null : snapshot.docs[0].id };
+  } catch (error) {
+    return { success: false, error: toErrorMessage(error) };
+  }
+}
+
 // Writes the renewal_requests document via the Admin SDK. This bypasses
 // firestore.rules entirely — callers are responsible for having already
 // verified the requester's identity/role and for not trusting client input

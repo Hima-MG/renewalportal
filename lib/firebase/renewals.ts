@@ -39,6 +39,7 @@ function normalizeRenewal(
     ...data,
     requestId,
     renewalDuration: data.renewalDuration ?? data.plan ?? "",
+    email: typeof data.email === "string" ? data.email : null,
   } as RenewalRequest;
 }
 

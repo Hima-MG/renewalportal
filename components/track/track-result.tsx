@@ -67,6 +67,12 @@ export function TrackResult({ renewal }: { renewal: TrackedRenewal }) {
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Student</dt>
               <dd className="text-right font-medium">{renewal.studentName}</dd>
+              {renewal.email && (
+                <>
+                  <dt className="text-muted-foreground">Email</dt>
+                  <dd className="text-right font-medium">{renewal.email}</dd>
+                </>
+              )}
               <dt className="text-muted-foreground">Course</dt>
               <dd className="text-right font-medium">{renewal.course}</dd>
               <dt className="text-muted-foreground">Renewal Duration</dt>

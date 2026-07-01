@@ -1,4 +1,5 @@
 import { RenewalForm } from "@/components/renewal/renewal-form";
+import { InstructionsPanel } from "@/components/renewal/instructions-panel";
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
       </section>
 
       <section className="flex-1 px-4 pb-16 sm:pb-24">
+        <InstructionsPanel />
         <RenewalForm />
       </section>
     </main>

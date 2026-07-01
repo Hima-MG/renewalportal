@@ -160,6 +160,10 @@ export function RenewalDrawer({
                 </dd>
                 <dt className="text-muted-foreground">Phone</dt>
                 <dd className="text-right font-medium">{renewal.phone}</dd>
+                <dt className="text-muted-foreground">Email Address</dt>
+                <dd className="text-right font-medium">
+                  {renewal.email ?? "—"}
+                </dd>
                 <dt className="text-muted-foreground">Course</dt>
                 <dd className="text-right font-medium">{renewal.course}</dd>
                 <dt className="text-muted-foreground">Renewal Duration</dt>

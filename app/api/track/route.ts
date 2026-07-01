@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
       imageHeight: data?.imageHeight ?? 0,
       imageBytes: data?.imageBytes ?? 0,
       imageFormat: data?.imageFormat ?? "",
+      email: typeof data?.email === "string" ? data.email : null,
       status: data?.status ?? "Pending",
       remarks: data?.remarks ?? "",
       verifiedBy: data?.verifiedBy ?? null,

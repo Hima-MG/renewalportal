@@ -25,6 +25,13 @@ export const createRenewalRequestSchema = z.object({
   paymentMethod: z.enum(PAYMENT_METHODS, {
     message: "Select a payment method.",
   }),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Enter a valid email address.")
+    .optional()
+    .or(z.literal("")),
   remarks: z.string().trim().max(500, "Keep notes under 500 characters."),
   screenshotUrl: z
     .url("Invalid screenshot URL.")

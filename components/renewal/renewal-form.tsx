@@ -43,7 +43,7 @@ import { compressImage } from "@/utils/image";
 import { RENEWAL_DURATIONS } from "@/types/renewal";
 
 const STEP_FIELDS: Record<number, FieldPath<RenewalFormValues>[]> = {
-  1: ["studentName", "phone", "course", "renewalDuration"],
+  1: ["studentName", "phone", "email", "course", "renewalDuration"],
   2: ["amount", "paymentMethod", "transactionId"],
   3: ["screenshot", "remarks"],
 };
@@ -102,6 +102,7 @@ export function RenewalForm() {
     defaultValues: {
       studentName: "",
       phone: "",
+      email: "",
       course: "",
       renewalDuration: undefined,
       amount: 0,
@@ -214,12 +215,6 @@ export function RenewalForm() {
         return;
       }
 
-      console.log("[renewal-form] Verified student session before write:", {
-        uid: user.uid,
-        role: idTokenResult.claims.role,
-        claims: idTokenResult.claims,
-      });
-
       setPhase("compressing");
       const compressedScreenshot = await compressImage(values.screenshot);
 
@@ -242,6 +237,7 @@ export function RenewalForm() {
       const createResult = await createRenewal({
         studentName: values.studentName,
         phone: values.phone,
+        email: values.email || undefined,
         course: values.course,
         renewalDuration: values.renewalDuration,
         amount: values.amount,
@@ -329,6 +325,25 @@ export function RenewalForm() {
                           type="tel"
                           inputMode="numeric"
                           placeholder="9876543210"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email Address</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          autoComplete="email"
+                          placeholder="Enter your email address"
                           {...field}
                         />
                       </FormControl>
