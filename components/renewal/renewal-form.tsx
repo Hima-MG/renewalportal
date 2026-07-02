@@ -41,6 +41,7 @@ import {
 } from "@/lib/validations/renewal";
 import { compressImage } from "@/utils/image";
 import { RENEWAL_DURATIONS } from "@/types/renewal";
+import type { RenewalPrefill } from "@/utils/parse-renewal-query-params";
 
 const STEP_FIELDS: Record<number, FieldPath<RenewalFormValues>[]> = {
   1: ["studentName", "phone", "email", "course", "renewalDuration"],
@@ -89,7 +90,7 @@ type SubmittedRequest = {
   trackingToken: string;
 };
 
-export function RenewalForm() {
+export function RenewalForm({ prefill }: { prefill?: RenewalPrefill }) {
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState<SubmittedRequest | null>(null);
   const [phase, setPhase] = useState<SubmitPhase>("idle");
@@ -103,9 +104,9 @@ export function RenewalForm() {
       studentName: "",
       phone: "",
       email: "",
-      course: "",
-      renewalDuration: undefined,
-      amount: 0,
+      course: prefill?.course ?? "",
+      renewalDuration: prefill?.renewalDuration ?? undefined,
+      amount: prefill?.amount ?? 0,
       transactionId: "",
       paymentMethod: undefined,
       remarks: "",

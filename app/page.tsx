@@ -1,16 +1,17 @@
-import { RenewalForm } from "@/components/renewal/renewal-form";
-import { InstructionsPanel } from "@/components/renewal/instructions-panel";
+import { Suspense } from "react";
+
 import { BrandHeader } from "@/components/renewal/brand-header";
+import { HomePageContent } from "@/components/renewal/home-page-content";
+import { PageLoader } from "@/components/shared/loading-spinner";
 
 export default function Home() {
   return (
     <main className="bg-muted/30 flex flex-1 flex-col">
       <BrandHeader />
 
-      <section className="flex-1 px-4 pb-16 sm:pb-24">
-        <InstructionsPanel />
-        <RenewalForm />
-      </section>
+      <Suspense fallback={<PageLoader />}>
+        <HomePageContent />
+      </Suspense>
     </main>
   );
 }
